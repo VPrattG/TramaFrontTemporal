@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
 import React, { useState, useEffect } from 'react'
-
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const cart = () => {
 
@@ -25,9 +25,25 @@ const cart = () => {
     const { item, quant, value } = useLocalSearchParams();
 
     useEffect(() => {
+        const loadCartItems = async () => {
+            try {
+                const storedItems = await AsyncStorage.getItem('cartItems');
+                if (storedItems !== null) {
+                    setCartItems(JSON.parse(storedItems));
+                }
+            } catch (error) {
+                console.error('Error al cargar el carrito:', error);
+            }
+        };
+
+        loadCartItems();
+    }, []);
+
+    useEffect(() => {
         console.log("Prueba")
         console.log(item, quant, value);
-        if (item && value) {
+        const addItemToCart = async () => {
+            // if (item && value) {
             const newItem = {
                 id: cartItems.length + 1,
                 name: item,
@@ -35,18 +51,28 @@ const cart = () => {
                 quantity: Number(quant) || 1
             };
 
-            const existingItemIndex = cartItems.findIndex(item => item.name === newItem.name);
+            let updatedCart;
+            const existingItemIndex = cartItems.findIndex(i => i.name === newItem.name);
 
             if (existingItemIndex !== -1) {
-                setCartItems(prevItems => {
-                    const updatedItems = [...prevItems];
-                    updatedItems[existingItemIndex].quantity += newItem.quantity;
-                    return updatedItems;
-                })
+                updatedCart = [...cartItems];
+                updatedCart[existingItemIndex].quantity += newItem.quantity;
             }
             else {
-                setCartItems(prevItems => [...prevItems, newItem]);
+                updatedCart = [...cartItems, newItem];
             }
+
+            setCartItems(updatedCart);
+            try {
+                await AsyncStorage.setItem('cartItems', JSON.stringify(updatedCart));
+            }
+            catch (error) {
+                console.log("Error al guardar el carrito: ", error);
+            }
+            // }
+        }
+        if (item && value) {
+            addItemToCart();
         }
     }, [item, value, quant]);
 
